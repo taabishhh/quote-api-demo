@@ -1,0 +1,13 @@
+diff --git a/chart/quote-api/values.yaml b/chart/quote-api/values.yaml
+index 84a1299..aeeba98 100644
+--- a/chart/quote-api/values.yaml
++++ b/chart/quote-api/values.yaml
+@@ -6,7 +6,7 @@ image:
+   pullPolicy: IfNotPresent
+ 
+ # Where /quote fetches its data from. Must start with http:// or https://
+-upstreamUrl: "https://catfact.ninja/fact"
++upstreamUrl: "catfact.ninja/fact"
+ 
+ probe:
+   path: /health

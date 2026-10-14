@@ -1,0 +1,28 @@
+diff --git a/app/main.py b/app/main.py
+index dc3cb82..24aecac 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -38,6 +38,11 @@ def health() -> dict:
+     return {"status": "ok", "version": CONFIG["version"]}
+ 
+ 
++@app.get("/version")
++def version() -> dict:
++    return {"version": CONFIG["version"]}
++
++
+ @app.get("/quote")
+ def quote() -> dict:
+     try:
+diff --git a/tests/test_app.py b/tests/test_app.py
+index eca0afa..a793116 100644
+--- a/tests/test_app.py
++++ b/tests/test_app.py
+@@ -32,3 +32,7 @@ def test_quote_upstream_failure_is_502(monkeypatch):
+ 
+     monkeypatch.setattr(httpx, "get", boom)
+     assert client.get("/quote").status_code == 502
++
++
++def test_version():
++    assert client.get("/version").json()["version"] == "test"

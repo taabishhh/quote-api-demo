@@ -1,0 +1,6 @@
+apiVersion: v2
+name: quote-api
+description: A tiny API that fetches a random fact from a public upstream API
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

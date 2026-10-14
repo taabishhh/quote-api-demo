@@ -1,0 +1,26 @@
+replicaCount: 2
+
+image:
+  repository: ""        # set by the CI workflow (your ECR repository URL)
+  tag: latest           # set by the CI workflow (the git commit SHA)
+  pullPolicy: IfNotPresent
+
+# Where /quote fetches its data from. Must start with http:// or https://
+upstreamUrl: "https://catfact.ninja/fact"
+
+probe:
+  path: /health
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+# Filled in by CI so a human (or the AI SRE agent) can trace a deploy to a commit.
+deploy:
+  gitSha: ""
+  actor: ""
+  runUrl: ""

@@ -1,0 +1,13 @@
+diff --git a/chart/quote-api/values.yaml b/chart/quote-api/values.yaml
+index 84a1299..ddd5222 100644
+--- a/chart/quote-api/values.yaml
++++ b/chart/quote-api/values.yaml
+@@ -9,7 +9,7 @@ image:
+ upstreamUrl: "https://catfact.ninja/fact"
+ 
+ probe:
+-  path: /health
++  path: /healthz
+ 
+ resources:
+   requests:

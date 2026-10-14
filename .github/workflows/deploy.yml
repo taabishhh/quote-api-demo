@@ -1,0 +1,88 @@
+name: build-and-deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Needed so the job can exchange GitHub's identity token for AWS access (OIDC).
+permissions:
+  id-token: write
+  contents: read
+
+# One deploy at a time; never cancel one halfway through.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  # Set these in GitHub: Settings -> Secrets and variables -> Actions -> Variables.
+  # `terraform output github_actions_config` prints all four.
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+  K8S_NAMESPACE: demo
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC, no stored keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image (tagged with the commit SHA)
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          IMAGE="$REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Connect to the EKS cluster
+        run: aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER_NAME"
+
+      - uses: azure/setup-helm@v4
+
+      # No --atomic on purpose: if the new version is broken, we leave it broken
+      # in the cluster so the AI SRE agent can see it and diagnose it. --wait makes
+      # this step (and the whole job) fail when pods do not become ready.
+      - name: Deploy with Helm
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          helm upgrade --install quote-api ./chart/quote-api \
+            --namespace "$K8S_NAMESPACE" \
+            --set image.repository="$REGISTRY/$ECR_REPOSITORY" \
+            --set-string image.tag="$GITHUB_SHA" \
+            --set-string deploy.gitSha="$GITHUB_SHA" \
+            --set-string deploy.actor="$GITHUB_ACTOR" \
+            --set-string deploy.runUrl="$RUN_URL" \
+            --wait --timeout 3m
+
+      - name: Show cluster state if the deploy failed
+        if: failure()
+        run: |
+          kubectl -n "$K8S_NAMESPACE" get pods -o wide || true
+          helm -n "$K8S_NAMESPACE" history quote-api || true
+          echo "Deploy failed. If the AI SRE agent is running in --watch mode it will diagnose this."

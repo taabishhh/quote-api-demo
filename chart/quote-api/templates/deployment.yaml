@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quote-api
+  labels:
+    app: quote-api
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: quote-api
+  template:
+    metadata:
+      labels:
+        app: quote-api
+      annotations:
+        deploy/git-sha: {{ .Values.deploy.gitSha | quote }}
+        deploy/actor: {{ .Values.deploy.actor | quote }}
+        deploy/github-run-url: {{ .Values.deploy.runUrl | quote }}
+    spec:
+      containers:
+        - name: quote-api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8000
+          env:
+            - name: UPSTREAM_URL
+              value: {{ .Values.upstreamUrl | quote }}
+            - name: APP_VERSION
+              value: {{ .Values.image.tag | toString | trunc 7 | quote }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probe.path }}
+              port: 8000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probe.path }}
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

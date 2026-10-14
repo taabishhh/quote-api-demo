@@ -1,0 +1,21 @@
+diff --git a/app/main.py b/app/main.py
+index dc3cb82..ef2d473 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -28,6 +28,7 @@ def load_config() -> dict:
+ 
+ 
+ CONFIG = load_config()
++API_TOKEN = os.environ["API_TOKEN"]  # new: token for the premium upstream
+ app = FastAPI(title="quote-api")
+ 
+ 
+diff --git a/tests/conftest.py b/tests/conftest.py
+index 4a82ca4..c9d4b1e 100644
+--- a/tests/conftest.py
++++ b/tests/conftest.py
+@@ -3,3 +3,4 @@ import os
+ # Config the app needs at import time. Set before the app module is imported.
+ os.environ.setdefault("UPSTREAM_URL", "https://example.test/fact")
+ os.environ.setdefault("APP_VERSION", "test")
++os.environ.setdefault("API_TOKEN", "test-token")
